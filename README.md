@@ -1,0 +1,1 @@
+If you ever wondered should the Sixers tank to keep their top 6 protected 2025 First Round Pick, this program will help you answer that question. TLDR: Yes if they can lose more than Brooklyn, No if they're above Chicago
