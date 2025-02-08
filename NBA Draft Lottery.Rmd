@@ -1,0 +1,124 @@
+---
+title: "Should the Sixers Tank"
+author: "Joe Yi"
+date: "2025-02-07"
+output: html_document
+---
+
+```{r libraries, include=FALSE}
+
+library(dplyr)
+library(rvest)
+library(stringr)
+```
+
+## Should the Sixers Tank?
+The point of this code is to figure out at what point are the sixers better off tanking or competing.
+
+```{r webscrape, include=FALSE}
+
+url <- "https://www.basketball-reference.com/leagues/NBA_2025_standings.html"
+
+# Read the webpage’s HTML content
+page <- read_html(url)
+
+# Scrape the Eastern Conference standings table
+east_table <- page %>% 
+  html_node("table#divs_standings_E") %>% 
+  html_table(fill = TRUE)
+
+clean_east_table <- east_table %>% 
+  filter(!grepl("Division", `Eastern Conference`)) %>% 
+  mutate(Team = str_remove(`Eastern Conference`, "\\s*\\(\\d+\\)"))
+
+
+# Scrape the Western Conference standings table
+west_table <- page %>% 
+  html_node("table#divs_standings_W") %>% 
+  html_table(fill = TRUE)
+
+clean_west_table <- west_table %>% 
+  filter(!grepl("Division", `Western Conference`)) %>% 
+  mutate(Team = str_remove(`Western Conference`, "\\s*\\(\\d+\\)"))
+
+nba_standings <- bind_rows(clean_east_table, clean_west_table) %>% 
+  select(Team, W, L) %>% 
+  rename(
+    Wins = W,
+    Losses = L
+  )
+
+nba_standings <- nba_standings %>% 
+  mutate(
+    Wins = as.numeric(Wins),
+    Losses = as.numeric(Losses)
+  )
+
+nba_standings$WLp <- nba_standings$Wins/(nba_standings$Wins + nba_standings$Losses)
+```
+
+## Setting up the Dataset
+
+Ordering by Win/Loss percentage then using a randomizer to break ties.
+
+Note we are using post-2019 NBA Draft Lottery Odds (worst 3 teams have equal odds)
+
+```{r pressure, echo=FALSE}
+
+nba_standings <- nba_standings %>% 
+  arrange(WLp)
+
+nba_standings_ties <- nba_standings %>% 
+  group_by(WLp) %>% 
+  mutate(tiebreaker = runif(n())) %>% 
+  arrange(WLp, tiebreaker) %>% 
+  ungroup()
+
+lottery_teams <- nba_standings[1:14, ]
+
+lottery_teams$lottery_odds <- c(0.14, 0.14, 0.14, 0.125, 0.105, 0.09, 0.075, 0.06, 0.045, 0.03, 0.02, 0.015, 0.01, 0.005)
+
+```
+
+```{r Function, echo=TRUE}
+
+top_x_protected <- function(team_name, protection_limit, simulations = sims) {
+  
+  top_pick_count <- 0
+  for (i in 1:simulations) {
+    lottery_results <- sample(lottery_teams$Team, 4, prob = lottery_teams$lottery_odds, replace = FALSE)
+    
+    remaining_lottery_teams <- setdiff(lottery_teams$Team, lottery_results)
+    
+    draft_order <- c(lottery_results, remaining_lottery_teams, rev(nba_standings$Team[15:30]))
+    
+    pick_position <- which(draft_order == team_name)
+    
+    if (pick_position <= protection_limit) {
+      top_pick_count <- top_pick_count +1
+    
+  
+    }
+  }
+  
+  protection_chance <- (top_pick_count / simulations) *100
+  return(protection_chance)
+}
+
+```
+
+
+```{r Chance, echo=TRUE}
+
+
+sims = 1000000
+
+chance <- top_x_protected("Philadelphia 76ers", 6)
+print(chance)
+
+# To see the sixer's chances if they were worse than the Nets, just replace the Team Name parameter with "Brooklyn Nets" instead of "Philadelphia 76ers"
+```
+
+## Conclusion
+
+It's hopeless. Since the 76ers are at the 7th spot, they have to pray they get into the top 4.
