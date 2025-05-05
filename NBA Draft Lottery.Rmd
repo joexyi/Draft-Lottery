@@ -63,7 +63,7 @@ Ordering by Win/Loss percentage then using a randomizer to break ties.
 
 Note we are using post-2019 NBA Draft Lottery Odds (worst 3 teams have equal odds)
 
-```{r pressure, echo=FALSE}
+```{r lottery, echo=FALSE}
 
 nba_standings <- nba_standings %>% 
   arrange(WLp)
